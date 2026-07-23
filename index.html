@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#4ECDC4">
+<link rel="manifest" href="./manifest.json">
+<title>习惯打卡</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#333;min-height:100vh}
+.app{max-width:500px;margin:0 auto;padding:20px 16px 100px}
+
+/* 头部 */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.header h1{font-size:22px;font-weight:700;color:#222}
+.header .date{font-size:14px;color:#999}
+.header .header-right{display:flex;align-items:center;gap:10px}
+.icon-btn{background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:#999;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.icon-btn:hover{background:#eee}
+
+/* 习惯卡片 */
+.habit-list{display:flex;flex-direction:column;gap:10px}
+.habit-card{background:#fff;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.habit-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);transform:translateY(-1px)}
+.habit-card.checked{border-left:3px solid transparent;padding-left:15px}
+.habit-card .icon-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.habit-card .card-info{flex:1;min-width:0}
+.habit-card .habit-name{font-size:16px;font-weight:600;color:#222;margin-bottom:4px}
+.habit-card .habit-stats{font-size:12px;color:#999;display:flex;gap:12px}
+.habit-card .habit-stats .stat-val{color:#666;font-weight:600}
+.habit-card .week-progress{display:flex;align-items:center;gap:6px;margin-top:6px}
+.habit-card .week-progress-bar{flex:1;height:5px;background:#eee;border-radius:3px;overflow:hidden}
+.habit-card .week-progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.habit-card .week-progress-text{font-size:11px;color:#aaa;white-space:nowrap}
+
+/* 打卡按钮 */
+.check-btn{width:42px;height:42px;border-radius:50%;border:2.5px solid #ddd;background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative}
+.check-btn:hover{border-color:#aaa}
+.check-btn .plus{font-size:20px;color:#ccc;transition:all .2s}
+.check-btn.checked{border:none;animation:pop .3s ease}
+.check-btn.checked svg{width:20px;height:20px}
+.check-btn.checked svg path{stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+/* 空状态 */
+.empty-state{text-align:center;padding:60px 20px;color:#ccc}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:#4ECDC4;color:#fff;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(78,205,196,.4);display:flex;align-items:center;justify-content:center;transition:all .2s;z-index:10}
+.fab:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(78,205,196,.5)}
+
+/* 弹窗通用 */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;justify-content:center;align-items:flex-end}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:500px;padding:24px 20px 34px;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal h3{font-size:18px;margin-bottom:20px;color:#222}
+
+/* 表单 */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;color:#888;margin-bottom:6px}
+.form-group input[type=text]{width:100%;padding:12px 14px;border:2px solid #eee;border-radius:10px;font-size:15px;font-family:inherit;outline:none;transition:border-color .2s}
+.form-group input[type=text]:focus{border-color:#4ECDC4}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:8px}
+.emoji-opt{width:40px;height:40px;border-radius:10px;border:2px solid transparent;background:#f5f5f5;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.emoji-opt:hover{background:#e8e8e8}
+.emoji-opt.selected{border-color:#4ECDC4;background:#e0f7f5}
+.color-grid{display:flex;flex-wrap:wrap;gap:10px}
+.color-opt{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .2s}
+.color-opt.selected{border-color:#333;transform:scale(1.15)}
+.freq-row{display:flex;align-items:center;gap:10px}
+.freq-row input[type=range]{flex:1;accent-color:#4ECDC4}
+.freq-row .freq-val{font-size:18px;font-weight:700;color:#4ECDC4;width:30px;text-align:center}
+.btn-primary{width:100%;padding:14px;background:#4ECDC4;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s}
+.btn-primary:hover{background:#3dbdb5}
+.btn-danger{width:100%;padding:12px;background:transparent;color:#e74c3c;border:1px solid #e74c3c;border-radius:10px;font-size:14px;cursor:pointer;margin-top:10px;font-family:inherit}
+.btn-danger:hover{background:#fef0ef}
+
+/* 详情弹窗 */
+.detail-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.detail-header .icon-circle{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px}
+.detail-header h3{font-size:18px;margin:0}
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.stat-card{background:#f8f8f8;border-radius:10px;padding:12px 8px;text-align:center}
+.stat-card .val{font-size:18px;font-weight:700;color:#222}
+.stat-card .lbl{font-size:11px;color:#999;margin-top:2px}
+
+/* 热力图 */
+.heatmap{margin-bottom:16px}
+.heatmap .month-label{font-size:12px;color:#999;margin-bottom:8px}
+.heatmap-grid{display:grid;grid-template-columns:20px repeat(4,1fr);gap:4px;align-items:center}
+.heatmap-grid .day-label{font-size:10px;color:#ccc;text-align:right;padding-right:4px}
+.heatmap-cell{aspect-ratio:1;border-radius:4px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:9px;color:#999;min-width:0;position:relative}
+.heatmap-cell.today{box-shadow:inset 0 0 0 2px rgba(0,0,0,.15)}
+.heatmap-cell.filled{color:#fff;font-weight:600}
+.heatmap-legend{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:6px;font-size:11px;color:#bbb}
+.heatmap-legend .dot{width:10px;height:10px;border-radius:2px;background:#eee;display:inline-block}
+.heatmap-legend .dot.filled{background:#4ECDC4}
+
+/* 设置弹窗 */
+.setting-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.setting-row label{font-size:15px;color:#444}
+.setting-row input[type=time]{padding:8px 12px;border:2px solid #eee;border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.toggle{position:relative;width:44px;height:24px;cursor:pointer}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:#ccc;border-radius:24px;transition:.3s}
+.toggle .slider::before{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.3s}
+.toggle input:checked+.slider{background:#4ECDC4}
+.toggle input:checked+.slider::before{transform:translateX(20px)}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 22px;border-radius:20px;font-size:14px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+@media(min-width:600px){
+  .modal{border-radius:18px;margin-bottom:40px}
+  .modal-overlay{align-items:center}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <h1>习惯打卡</h1>
+      <div class="date" id="headerDate"></div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="settingsBtn" title="设置">⚙</button>
+    </div>
+  </div>
+
+  <div class="habit-list" id="habitList"></div>
+
+  <button class="fab" id="addBtn">+</button>
+</div>
+
+<!-- 添加/编辑习惯弹窗 -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3 id="editTitle">新建习惯</h3>
+    <div class="form-group"><label>习惯名称</label><input type="text" id="habitNameInput" placeholder="例如：早起、运动、阅读…" maxlength="20"></div>
+    <div class="form-group"><label>图标</label><div class="emoji-grid" id="emojiGrid"></div></div>
+    <div class="form-group"><label>颜色</label><div class="color-grid" id="colorGrid"></div></div>
+    <div class="form-group"><label>每周目标天数</label><div class="freq-row"><input type="range" id="freqRange" min="1" max="7" value="7"><span class="freq-val" id="freqVal">7</span></div></div>
+    <button class="btn-primary" id="saveHabitBtn">保存</button>
+    <button class="btn-danger" id="deleteHabitBtn" style="display:none">删除习惯</button>
+  </div>
+</div>
+
+<!-- 习惯详情弹窗 -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" id="detailContent"></div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h3>设置</h3>
+    <div class="setting-row"><label>每日提醒</label><label class="toggle"><input type="checkbox" id="reminderToggle"><span class="slider"></span></label></div>
+    <div class="setting-row"><label>提醒时间</label><input type="time" id="reminderTime"></div>
+    <button class="btn-primary" id="saveSettingsBtn">保存</button>
+    <button class="btn-danger" id="exportDataBtn" style="margin-top:8px">导出数据 (JSON)</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== 数据层 ======
+const STORAGE_KEY = 'habit_tracker_data';
+const SETTINGS_KEY = 'habit_tracker_settings';
+const COLORS = ['#FF6B6B','#4ECDC4','#FFD93D','#6C5CE7','#A8E6CF','#FF8C94','#74B9FF','#FDCB6E','#E17055','#00B894'];
+const EMOJIS = ['🌅','🏃','📖','💧','🧘','✍️','💻','🎸','📝','🍎','😴','🚭','💰','📚','🏋️','🧹','🎯','💊','🐕','🎨'];
+
+let habits = loadHabits();
+let settings = loadSettings();
+let editingId = null;
+let detailId = null;
+
+function loadHabits() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
+function saveHabits() { localStorage.setItem(STORAGE_KEY, JSON.stringify(habits)); }
+function loadSettings() { try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); return { reminderEnabled: s.reminderEnabled || false, reminderTime: s.reminderTime || '08:00' }; } catch { return { reminderEnabled: false, reminderTime: '08:00' }; } }
+function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+
+// ====== 日期工具 ======
+function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function dateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function getMonday(d) { const r = new Date(d); r.setDate(r.getDate() - ((r.getDay() + 6) % 7)); return r; }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+// ====== 统计计算 ======
+function currentStreak(h) {
+  let d = new Date(); let today = dateStr(d); let count = 0;
+  let cursor = h.checkins[today] ? new Date() : addDays(new Date(), -1);
+  while (true) {
+    if (h.checkins[dateStr(cursor)]) { count++; cursor = addDays(cursor, -1); }
+    else break;
+  }
+  return count;
+}
+function longestStreak(h) {
+  const dates = Object.keys(h.checkins).filter(k => h.checkins[k]).sort();
+  if (!dates.length) return 0;
+  let max = 1, cur = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const prev = new Date(dates[i-1]), curr = new Date(dates[i]);
+    if ((curr - prev) / 86400000 === 1) { cur++; max = Math.max(max, cur); }
+    else { cur = 1; }
+  }
+  return max;
+}
+function totalCheckins(h) { return Object.keys(h.checkins).filter(k => h.checkins[k]).length; }
+function completionRate(h) {
+  const created = new Date(h.createdAt); const today = new Date();
+  const days = Math.max(1, Math.floor((today - created) / 86400000) + 1);
+  return Math.round(totalCheckins(h) / days * 100);
+}
+function weekProgress(h) {
+  const monday = getMonday(new Date()); let count = 0;
+  for (let i = 0; i < 7; i++) {
+    if (h.checkins[dateStr(addDays(monday, i))]) count++;
+  }
+  return { done: count, target: h.targetFrequency };
+}
+
+// ====== DOM 引用 ======
+const habitList = document.getElementById('habitList');
+const headerDate = document.getElementById('headerDate');
+const editModal = document.getElementById('editModal');
+const detailModal = document.getElementById('detailModal');
+const settingsModal = document.getElementById('settingsModal');
+const toast = document.getElementById('toast');
+
+// ====== Toast ======
+function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 1800); }
+
+// ====== UI 渲染 ======
+function renderHeader() {
+  const d = new Date();
+  const days = ['日','一','二','三','四','五','六'];
+  headerDate.textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 星期${days[d.getDay()]}`;
+}
+
+function renderHabits() {
+  if (!habits.length) {
+    habitList.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>还没有习惯，点击下方 + 开始</p></div>`;
+    return;
+  }
+  const today = todayStr();
+  habitList.innerHTML = habits.map(h => {
+    const checked = !!h.checkins[today];
+    const wp = weekProgress(h);
+    const pct = Math.min(100, Math.round(wp.done / wp.target * 100));
+    return `
+      <div class="habit-card${checked ? ' checked' : ''}" data-id="${h.id}">
+        <div class="icon-circle" style="background:${h.color}22;color:${h.color}">${h.icon}</div>
+        <div class="card-info">
+          <div class="habit-name">${escH(h.name)}</div>
+          <div class="habit-stats">
+            <span>连续 <span class="stat-val">${currentStreak(h)}</span> 天</span>
+            <span>最长 <span class="stat-val">${longestStreak(h)}</span> 天</span>
+          </div>
+          <div class="week-progress">
+            <div class="week-progress-bar"><div class="week-progress-fill" style="width:${pct}%;background:${h.color}"></div></div>
+            <span class="week-progress-text">本周 ${wp.done}/${wp.target}</span>
+          </div>
+        </div>
+        <button class="check-btn${checked ? ' checked' : ''}" style="${checked ? `background:${h.color}` : `border-color:${h.color}`}" data-check="${h.id}">
+          ${checked ? '<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' : `<span class="plus" style="color:${h.color}">+</span>`}
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function escH(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ====== 事件委托：打卡 & 点击卡片 ======
+habitList.addEventListener('click', e => {
+  const btn = e.target.closest('.check-btn');
+  const card = e.target.closest('.habit-card');
+  if (btn) {
+    e.stopPropagation();
+    const id = Number(btn.dataset.check);
+    toggleCheckin(id);
+  } else if (card) {
+    const id = Number(card.dataset.id);
+    openDetail(id);
+  }
+});
+
+function toggleCheckin(id) {
+  const h = habits.find(x => x.id === id);
+  if (!h) return;
+  const today = todayStr();
+  if (h.checkins[today]) {
+    delete h.checkins[today];
+  } else {
+    h.checkins[today] = true;
+  }
+  saveHabits(); renderHabits();
+}
+
+// ====== 详情弹窗 ======
+function openDetail(id) {
+  detailId = id;
+  const h = habits.find(x => x.id === id);
+  if (!h) return;
+  const cs = currentStreak(h), ls = longestStreak(h), tc = totalCheckins(h), cr = completionRate(h);
+  const heatmapHTML = buildHeatmap(h);
+  detailModal.querySelector('#detailContent').innerHTML = `
+    <div class="detail-header">
+      <div class="icon-circle" style="background:${h.color}22;color:${h.color}">${h.icon}</div>
+      <h3>${escH(h.name)}</h3>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card"><div class="val">${cs}</div><div class="lbl">当前连续</div></div>
+      <div class="stat-card"><div class="val">${ls}</div><div class="lbl">历史最长</div></div>
+      <div class="stat-card"><div class="val">${tc}</div><div class="lbl">总打卡</div></div>
+      <div class="stat-card"><div class="val">${cr}%</div><div class="lbl">完成率</div></div>
+    </div>
+    ${heatmapHTML}
+    <button class="btn-danger" onclick="deleteHabit(${id})">删除习惯</button>
+  `;
+  detailModal.classList.add('show');
+}
+
+function buildHeatmap(h) {
+  const today = new Date();
+  const start = addDays(today, -27);
+  const monday = getMonday(start);
+  const weeks = [];
+  for (let w = 0; w < 4; w++) {
+    const weekStart = addDays(monday, w * 7);
+    weeks.push(Array.from({length:7}, (_, i) => addDays(weekStart, i)));
+  }
+  const dayLabels = ['一','二','三','四','五','六','日'];
+  const todayS = todayStr();
+  let html = '<div class="heatmap"><div class="month-label">最近 4 周</div><div class="heatmap-grid">';
+  for (let r = 0; r < 7; r++) {
+    html += `<div class="day-label">${dayLabels[r]}</div>`;
+    for (let c = 0; c < 4; c++) {
+      const d = weeks[c][r];
+      const ds = dateStr(d);
+      const checked = !!h.checkins[ds];
+      const isToday = ds === todayS;
+      const inFuture = d > today;
+      html += `<div class="heatmap-cell${checked ? ' filled' : ''}${isToday ? ' today' : ''}"
+        style="${checked ? 'background:' + h.color : (inFuture ? 'background:#fafafa' : '')}">
+        ${d.getDate()}
+      </div>`;
+    }
+  }
+  html += '</div><div class="heatmap-legend"><span class="dot"></span> 未打卡 <span class="dot filled"></span> 已打卡</div></div>';
+  return html;
+}
+
+function deleteHabit(id) {
+  if (!confirm('确定删除这个习惯？所有打卡记录将丢失。')) return;
+  habits = habits.filter(x => x.id !== id);
+  saveHabits(); renderHabits(); detailModal.classList.remove('show');
+}
+
+// ====== 添加/编辑习惯弹窗 ======
+document.getElementById('addBtn').addEventListener('click', () => openEditModal(null));
+
+function openEditModal(id) {
+  editingId = id;
+  const title = document.getElementById('editTitle');
+  const nameInput = document.getElementById('habitNameInput');
+  const freqRange = document.getElementById('freqRange');
+  const freqVal = document.getElementById('freqVal');
+  const deleteBtn = document.getElementById('deleteHabitBtn');
+
+  // 渲染 emoji 和颜色选择器
+  const emojiGrid = document.getElementById('emojiGrid');
+  const colorGrid = document.getElementById('colorGrid');
+  emojiGrid.innerHTML = EMOJIS.map(e => `<button class="emoji-opt" data-emoji="${e}">${e}</button>`).join('');
+  colorGrid.innerHTML = COLORS.map(c => `<button class="color-opt" style="background:${c}" data-color="${c}"></button>`).join('');
+
+  let selEmoji = EMOJIS[0], selColor = COLORS[0];
+
+  if (id) {
+    const h = habits.find(x => x.id === id);
+    if (!h) return;
+    title.textContent = '编辑习惯';
+    nameInput.value = h.name;
+    freqRange.value = h.targetFrequency;
+    freqVal.textContent = h.targetFrequency;
+    deleteBtn.style.display = 'block';
+    selEmoji = h.icon; selColor = h.color;
+  } else {
+    title.textContent = '新建习惯';
+    nameInput.value = '';
+    freqRange.value = 7;
+    freqVal.textContent = '7';
+    deleteBtn.style.display = 'none';
+  }
+
+  // 选中
+  document.querySelector(`[data-emoji="${selEmoji}"]`)?.classList.add('selected');
+  document.querySelector(`[data-color="${selColor}"]`)?.classList.add('selected');
+
+  freqRange.oninput = () => { freqVal.textContent = freqRange.value; };
+
+  // emoji 选择
+  emojiGrid.onclick = (e) => {
+    const el = e.target.closest('.emoji-opt');
+    if (!el) return;
+    emojiGrid.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selEmoji = el.dataset.emoji;
+  };
+
+  // 颜色选择
+  colorGrid.onclick = (e) => {
+    const el = e.target.closest('.color-opt');
+    if (!el) return;
+    colorGrid.querySelectorAll('.color-opt').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selColor = el.dataset.color;
+  };
+
+  document.getElementById('saveHabitBtn').onclick = () => {
+    const name = nameInput.value.trim();
+    if (!name) { showToast('请输入习惯名称'); return; }
+    const freq = parseInt(freqRange.value);
+    if (id) {
+      const h = habits.find(x => x.id === id);
+      if (h) { h.name = name; h.icon = selEmoji; h.color = selColor; h.targetFrequency = freq; }
+    } else {
+      habits.push({ id: Date.now(), name, icon: selEmoji, color: selColor, targetFrequency: freq, createdAt: todayStr(), checkins: {} });
+    }
+    saveHabits(); renderHabits(); editModal.classList.remove('show');
+  };
+
+  deleteBtn.onclick = () => {
+    if (!confirm('确定删除？')) return;
+    habits = habits.filter(x => x.id !== id);
+    saveHabits(); renderHabits(); editModal.classList.remove('show');
+  };
+
+  editModal.classList.add('show');
+}
+
+// ====== 设置弹窗 ======
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('reminderToggle').checked = settings.reminderEnabled;
+  document.getElementById('reminderTime').value = settings.reminderTime;
+  settingsModal.classList.add('show');
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+  settings.reminderEnabled = document.getElementById('reminderToggle').checked;
+  settings.reminderTime = document.getElementById('reminderTime').value;
+  saveSettings();
+  settingsModal.classList.remove('show');
+  showToast('设置已保存');
+  if (settings.reminderEnabled && Notification.permission !== 'granted') {
+    Notification.requestPermission();
+  }
+});
+
+// 导出数据
+document.getElementById('exportDataBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ habits, settings, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'habit-tracker-backup.json'; a.click();
+  showToast('数据已导出');
+  settingsModal.classList.remove('show');
+});
+
+// ====== 弹窗关闭 ======
+[editModal, detailModal, settingsModal].forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+});
+
+// ====== 提醒检查 ======
+function checkReminder() {
+  if (!settings.reminderEnabled || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  if (timeStr !== settings.reminderTime) return;
+  const today = todayStr();
+  const unchecked = habits.filter(h => !h.checkins[today]);
+  if (unchecked.length === 0) return;
+  const lastReminder = sessionStorage.getItem('last_reminder_date');
+  if (lastReminder === today) return;
+  sessionStorage.setItem('last_reminder_date', today);
+  new Notification('习惯打卡', { body: `还有 ${unchecked.length} 个习惯未完成，加油！`, tag: 'habit-reminder' });
+}
+
+// ====== PWA 注册 ======
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// ====== 初始化 ======
+renderHeader(); renderHabits();
+setInterval(checkReminder, 30000);
+</script>
+</body>
+</html>
